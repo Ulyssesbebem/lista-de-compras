@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lista de Compras</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#27ae60">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0f4f0;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #27ae60;
+      color: white;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    header h1 { font-size: 1.3rem; font-weight: 700; }
+
+    #contador {
+      background: rgba(255,255,255,0.25);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .add-area {
+      background: white;
+      padding: 16px;
+      display: flex;
+      gap: 10px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .add-area input {
+      flex: 1;
+      padding: 12px 16px;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .add-area input:focus { border-color: #27ae60; }
+
+    .add-area button {
+      background: #27ae60;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 12px 20px;
+      font-size: 1.5rem;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background 0.2s;
+    }
+
+    .add-area button:active { background: #219a52; }
+
+    .lista {
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .item {
+      background: white;
+      border-radius: 14px;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      transition: opacity 0.2s;
+    }
+
+    .item.marcado {
+      opacity: 0.5;
+    }
+
+    .item.marcado .nome {
+      text-decoration: line-through;
+      color: #999;
+    }
+
+    .check {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2.5px solid #27ae60;
+      background: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+
+    .item.marcado .check {
+      background: #27ae60;
+      border-color: #27ae60;
+    }
+
+    .check::after {
+      content: '';
+      display: none;
+      width: 7px;
+      height: 12px;
+      border: 2.5px solid white;
+      border-top: none;
+      border-left: none;
+      transform: rotate(45deg) translateY(-2px);
+    }
+
+    .item.marcado .check::after { display: block; }
+
+    .nome {
+      flex: 1;
+      font-size: 1rem;
+      color: #2c3e50;
+    }
+
+    .btn-del {
+      background: none;
+      border: none;
+      color: #ccc;
+      font-size: 1.3rem;
+      cursor: pointer;
+      padding: 4px;
+      line-height: 1;
+    }
+
+    .btn-del:active { color: #e74c3c; }
+
+    .acoes {
+      padding: 8px 16px 24px;
+      display: flex;
+      gap: 10px;
+    }
+
+    .acoes button {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .acoes button:active { opacity: 0.7; }
+
+    #btn-limpar-marcados {
+      background: #f39c12;
+      color: white;
+    }
+
+    #btn-limpar-tudo {
+      background: #e74c3c;
+      color: white;
+    }
+
+    .vazio {
+      text-align: center;
+      color: #aaa;
+      padding: 48px 20px;
+      font-size: 1rem;
+    }
+
+    .vazio span { font-size: 3rem; display: block; margin-bottom: 12px; }
+
+    .secao-titulo {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #999;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 8px 4px 4px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🛒 Lista de Compras</h1>
+  <div id="contador"></div>
+</header>
+
+<div class="add-area">
+  <input type="text" id="input-item" placeholder="Adicionar item..." autocomplete="off">
+  <button onclick="adicionar()">+</button>
+</div>
+
+<div class="lista" id="lista"></div>
+
+<div class="acoes">
+  <button id="btn-limpar-marcados" onclick="limparMarcados()">Remover marcados</button>
+  <button id="btn-limpar-tudo" onclick="limparTudo()">Limpar tudo</button>
+</div>
+
+<script>
+  let itens = JSON.parse(localStorage.getItem('compras') || '[]');
+
+  function salvar() {
+    localStorage.setItem('compras', JSON.stringify(itens));
+  }
+
+  function renderizar() {
+    const lista = document.getElementById('lista');
+    const pendentes = itens.filter(i => !i.marcado);
+    const marcados = itens.filter(i => i.marcado);
+    const total = itens.length;
+    const totalMarcados = marcados.length;
+
+    document.getElementById('contador').textContent =
+      total === 0 ? '' : `${totalMarcados}/${total}`;
+
+    if (total === 0) {
+      lista.innerHTML = '<div class="vazio"><span>🛍️</span>Lista vazia</div>';
+      return;
+    }
+
+    let html = '';
+
+    if (pendentes.length > 0) {
+      html += `<div class="secao-titulo">A pegar (${pendentes.length})</div>`;
+      pendentes.forEach(item => {
+        html += itemHTML(item);
+      });
+    }
+
+    if (marcados.length > 0) {
+      html += `<div class="secao-titulo">No carrinho (${marcados.length})</div>`;
+      marcados.forEach(item => {
+        html += itemHTML(item);
+      });
+    }
+
+    lista.innerHTML = html;
+  }
+
+  function itemHTML(item) {
+    return `
+      <div class="item ${item.marcado ? 'marcado' : ''}" id="item-${item.id}">
+        <div class="check" onclick="toggleMarcado(${item.id})"></div>
+        <span class="nome">${item.nome}</span>
+        <button class="btn-del" onclick="remover(${item.id})">✕</button>
+      </div>
+    `;
+  }
+
+  function adicionar() {
+    const input = document.getElementById('input-item');
+    const nome = input.value.trim();
+    if (!nome) return;
+    itens.push({ id: Date.now(), nome, marcado: false });
+    salvar();
+    renderizar();
+    input.value = '';
+    input.focus();
+  }
+
+  function toggleMarcado(id) {
+    const item = itens.find(i => i.id === id);
+    if (item) {
+      item.marcado = !item.marcado;
+      salvar();
+      renderizar();
+    }
+  }
+
+  function remover(id) {
+    itens = itens.filter(i => i.id !== id);
+    salvar();
+    renderizar();
+  }
+
+  function limparMarcados() {
+    if (!itens.some(i => i.marcado)) return;
+    if (confirm('Remover todos os itens marcados?')) {
+      itens = itens.filter(i => !i.marcado);
+      salvar();
+      renderizar();
+    }
+  }
+
+  function limparTudo() {
+    if (itens.length === 0) return;
+    if (confirm('Limpar toda a lista?')) {
+      itens = [];
+      salvar();
+      renderizar();
+    }
+  }
+
+  document.getElementById('input-item').addEventListener('keydown', e => {
+    if (e.key === 'Enter') adicionar();
+  });
+
+  renderizar();
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js');
+  }
+</script>
+
+</body>
+</html>
